@@ -33,14 +33,14 @@ class Mouse:
     def rightDist(self):
         return self.senses.tofs["right"]
 
+    @property
+    def dofCalibration(self):
+        return self.senses.dof.calibration_status
+
     def initDof(self):
-        self.motorL.throttle = 0.15
-        self.motorR.throttle = -0.15
-        time.sleep(0.1)
-        self.motorL.throttle = -0.15
-        self.motorR.throttle = 0.15
-        time.sleep(0.1)
-        self.stop()
+        while self.dofCalibration[1] == 0:
+            time.sleep(1)
+            continue
 
     def moveForward(self, throttle):
         self.moveState = "forward"
