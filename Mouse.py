@@ -73,14 +73,12 @@ class Mouse:
     def turnAngle(self, degrees, speed):
         self.stop()
         targetAngle = (self.angle + degrees) % 360
-        print(f"Current Angle: {self.angle} || Target Angle: {targetAngle}")
         self.moveState = "turning"
         self.motorL.throttle = speed if degrees > 0 else -1*speed
         self.motorR.throttle = -1*speed if degrees > 0 else speed
         while abs(targetAngle - self.angle) > 0.75:
             continue
         self.stop()
-        print(f"Resulting Angle: {self.angle}")
 
     def turn(self, direction):
         if direction == "right":
