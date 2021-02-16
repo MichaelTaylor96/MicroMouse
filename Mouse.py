@@ -16,6 +16,8 @@ class Mouse:
         self.motorR = motors.motor1
         self.moveState = "stationary"
         self.initDof()
+        self.heading = self.angle
+        self.trim = {"direction": "", "size": 0}
 
     @property
     def angle(self):
@@ -44,13 +46,15 @@ class Mouse:
 
     def moveForward(self, throttle):
         self.moveState = "forward"
-        heading = self.angle
+        self.heading = self.angle
+        print(f"Heading to maintain: {self.heading}")
         done = False
         while not done:
-            error = (self.angle - heading) % 360
+            error = (self.angle - self.heading) % 360
             if error > 180:
                 error = -1*(360-error)
-            correction = abs((1-throttle)*(error/360))
+            errorMod = min(2.49*(error/180), 1)
+            correction = abs((1-throttle)*errorMod)
             self.motorL.throttle = throttle
             self.motorR.throttle = throttle
             if (error < 0):
