@@ -16,8 +16,13 @@ class Mouse:
         self.motorR = motors.motor1
         self.moveState = "stationary"
         self.initDof()
-        self.heading = self.angle
-        self.trim = {"direction": "", "size": 0}
+        self.targetHeading = self.angle
+        # Trim use to have direction like {direction: "right", size: 0}
+        # However, for now, I know that the right motor is more powerful than the left,
+        # and will just always apply the trim as a negative on the right throttle. It
+        # makes it easier when the trim has overcorrect to only worry about one.
+        # Open to other ideas though (looking at you Greg)
+        self.trim = 0
 
     @property
     def angle(self):
@@ -46,22 +51,60 @@ class Mouse:
 
     def moveForward(self, throttle):
         self.moveState = "forward"
-        self.heading = self.angle
-        print(f"Heading to maintain: {self.heading}")
+        self.targetHeading = self.angle
+        previousAngle = self.angle
         done = False
+        correctionBase = min(self.trim+throttle, 1-(self.trim+throttle))
+
         while not done:
-            error = (self.angle - self.heading) % 360
+            # Check if close to walls
+            # if self.leftDist < 50:
+            #     self.targetHeading = (self.targetHeading + 10) % 360
+            # elif self.rightDist < 50:
+            #     self.targetHeading = (self.targetHeading - 10) % 360
+
+            # Evaluate errors
+            error = (self.angle - self.targetHeading) % 360
             if error > 180:
                 error = -1*(360-error)
-            errorMod = min(2.49*(error/180), 1)
-            correction = abs((1-throttle)*errorMod)
+            angleDrift = (self.angle - previousAngle) % 360
+            if (angleDrift > 180):
+                angleDrift = -1*(360-angleDrift)
+            previousAngle = self.angle
+
+            correction = correctionBase*(error/180)
+            
+            # Back off the trim correction if angle is approaching heading
+            if error < 0 <= angleDrift or angleDrift <= 0 < error:
+                correction = correctionBase*((angleDrift)/180)
+
+            self.trim += correction
+            self.trim = max(min(self.trim, 1-throttle), -throttle)
             self.motorL.throttle = throttle
-            self.motorR.throttle = throttle
-            if (error < 0):
-                self.motorL.throttle += correction
-            else:
-                self.motorR.throttle += correction
+            self.motorR.throttle = throttle + self.trim
             done = self.frontDist < 70
+        self.stop()
+
+    def moveForwardEventuallyStraight(self, throttle):
+        self.moveState = "forward"
+        previousAngle = self.angle
+        done = False
+        self.trim = 0
+        trimCoefficient = 20
+        
+        while not done:
+            angleDrift = (self.angle - previousAngle) % 360
+            if (angleDrift > 180):
+                angleDrift = -1*(360-angleDrift)
+
+            self.trim += (angleDrift / 180) * trimCoefficient
+
+            self.motorL.throttle = throttle
+            self.motorR.throttle = min(max(throttle + self.trim, 0), 1)
+            done = self.frontDist < 70
+
+            previousAngle = self.angle
+
         self.stop()
 
     def moveBackward(self, throttle):
@@ -78,8 +121,9 @@ class Mouse:
         self.stop()
         targetAngle = (self.angle + degrees) % 360
         self.moveState = "turning"
+        Rspeed = speed + self.trim
         self.motorL.throttle = speed if degrees > 0 else -1*speed
-        self.motorR.throttle = -1*speed if degrees > 0 else speed
+        self.motorR.throttle = -1*Rspeed if degrees > 0 else Rspeed
         while abs(targetAngle - self.angle) > 0.75:
             continue
         self.stop()
