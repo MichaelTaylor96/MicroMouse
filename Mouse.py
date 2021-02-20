@@ -58,10 +58,10 @@ class Mouse:
 
         while not done:
             # Check if close to walls
-            # if self.leftDist < 50:
-            #     self.targetHeading = (self.targetHeading + 10) % 360
-            # elif self.rightDist < 50:
-            #     self.targetHeading = (self.targetHeading - 10) % 360
+            # if self.leftDist < 50 or 120 > self.rightDist > 70:
+            #     self.targetHeading = (self.targetHeading + 5) % 360
+            # elif self.rightDist < 50 or 120 > self.leftDist > 70:
+            #     self.targetHeading = (self.targetHeading - 5) % 360
 
             # Evaluate errors
             error = (self.angle - self.targetHeading) % 360
@@ -80,8 +80,10 @@ class Mouse:
 
             self.trim += correction
             self.trim = max(min(self.trim, 1-throttle), -throttle)
-            self.motorL.throttle = throttle
-            self.motorR.throttle = throttle + self.trim
+            lTrim = abs(self.trim) if self.trim < 0 else 0
+            rTrim = self.trim if self.trim > 0 else 0
+            self.motorL.throttle = throttle + lTrim
+            self.motorR.throttle = throttle + rTrim
             done = self.frontDist < 70
         self.stop()
 
@@ -121,9 +123,10 @@ class Mouse:
         self.stop()
         targetAngle = (self.angle + degrees) % 360
         self.moveState = "turning"
-        Rspeed = speed + self.trim
-        self.motorL.throttle = speed if degrees > 0 else -1*speed
-        self.motorR.throttle = -1*Rspeed if degrees > 0 else Rspeed
+        rSpeed = speed + self.trim if self.trim > 0 else speed
+        lSpeed = abs(self.trim) + speed if self.trim < 0 else speed
+        self.motorL.throttle = lSpeed if degrees > 0 else -1*lSpeed
+        self.motorR.throttle = -1*rSpeed if degrees > 0 else rSpeed
         while abs(targetAngle - self.angle) > 0.75:
             continue
         self.stop()
@@ -136,7 +139,7 @@ class Mouse:
         else:
             print("Invalid Direction")
             return
-        targetAngle = (self.angle + angle) % 360
+        targetAngle = (self.targetHeading + angle) % 360
         while abs(angle) > 0.25:
             self.turnAngle(angle, 0.15)
             angle = targetAngle - self.angle
